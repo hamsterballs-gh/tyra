@@ -3,6 +3,7 @@ EE_BIN = ari.elf
 TYRA_DIR = ./../../engine
 
 EE_OBJS =											\
+	fonts/impress.o									\
 	camera.o										\
 	objects/player.o								\
 	ari.o											\

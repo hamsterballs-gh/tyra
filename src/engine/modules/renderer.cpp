@@ -135,6 +135,16 @@ void Renderer::draw(Sprite &t_sprite)
     packet2_free(packet2);
 }
 
+void Renderer::draw(fsfont_t &t_font, unsigned char *t_str0, unsigned char *t_str1, fontx_t &krom_u, fontx_t &t_krom_k, vertex_t &t_v0, color_t &t_c0, color_t &t_c1)
+{
+    packet2_t *packet2 = packet2_create(12, P2_TYPE_NORMAL, P2_MODE_NORMAL, 0);
+    packet2_update(packet2, fontx_print_sjis(packet2->next, 0, t_str1, CENTER_ALIGN, &t_v0, &t_c0, &krom_u, &t_krom_k));
+    packet2_update(packet2, fontstudio_print_string(packet2->next, 0, t_str0, CENTER_ALIGN, &t_v0, &t_c1, &t_font));
+    dma_channel_wait(DMA_CHANNEL_GIF, 0);
+    dma_channel_send_packet2(packet2, DMA_CHANNEL_GIF, true);
+    packet2_free(packet2);
+}
+
 /** Initializes drawing environment (1st app packet) */
 void Renderer::initDrawingEnv(float t_screenW, float t_screenH)
 {

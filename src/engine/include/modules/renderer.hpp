@@ -13,6 +13,7 @@
 
 #include <draw_buffers.h>
 #include <draw_primitives.h>
+#include <font.h>
 #include <packet2.h>
 #include "gif_sender.hpp"
 #include "vif_sender.hpp"
@@ -40,7 +41,11 @@ public:
 
     /// --- Draw: PATH3
 
+    // TODO
     void draw(Sprite &t_sprite);
+
+    // TODO
+    void draw(fsfont_t &t_font, unsigned char *t_str0, unsigned char *t_str1, fontx_t &krom_u, fontx_t &t_krom_k, vertex_t &t_v0, color_t &t_c0, color_t &t_c1);
 
     /** 
      * Draw many meshes with lighting information.

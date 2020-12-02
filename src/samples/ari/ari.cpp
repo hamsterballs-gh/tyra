@@ -83,6 +83,19 @@ void Ari::onInit()
     texRepo->addByMesh("skybox/", skybox, BMP);
     texRepo->addByMesh("ari/", player.mesh, BMP);
     // engine->audio.playSong();
+
+    // fontx_load("rom0:KROM", &krom_u, SINGLE_BYTE, 2, 1, 1);
+    // fontx_load("rom0:KROM", &krom_k, DOUBLE_BYTE, 2, 1, 1);
+    // char *ini;
+    // if ((ini = fontstudio_load_ini("host:impress.ini")) != NULL)
+    // {
+    //     fontstudio_parse_ini(&impress, ini, 512, 256);
+    //     free(ini);
+    // }
+    // else
+    // {
+    //     printf("Error: cannot load ini file.\n");
+    // }
 }
 
 void Ari::initBulb()
@@ -91,8 +104,44 @@ void Ari::initBulb()
     bulb.position.set(5.0F, 10.0F, 10.0F);
 }
 
+// extern unsigned int image_clut32[];
+// extern unsigned char image_pixel[];
+// #include <font.h>
+// fsfont_t impress;
+// fontx_t krom_u;
+// fontx_t krom_k;
+
 void Ari::onUpdate()
 {
+
+    // vertex_t v0;
+
+    // color_t c0;
+    // color_t c1;
+
+    // v0.x = 320.0f;
+    // v0.y = 240.0f;
+    // v0.z = 4;
+
+    // c0.r = 0xFF;
+    // c0.g = 0xFF;
+    // c0.b = 0xFF;
+    // c0.a = 0x80;
+    // c0.q = 1.0f;
+
+    // c1.r = 0xFF;
+    // c1.g = 0x00;
+    // c1.b = 0x00;
+    // c1.a = 0x40;
+    // c1.q = 1.0f;
+
+    // unsigned char str0[] = {0x61, 0x62, 0xC2, 0xA9, 0x78, 0xC2, 0xA5, 0xC2, 0xB2, '\0'};
+
+    // // Shift-JIS
+    // unsigned char str1[] = {0x81, 0xBC, 0x93, 0xF1, 0x93, 0xF1, 0x93, 0xF1, 0x81, 0x69, 0x81, 0x40, 0x81,
+    //                         0x4F, 0x83, 0xD6, 0x81, 0x4F, 0x81, 0x6A, 0x93, 0xF1, 0x81, 0xBD, 0x0D, '\0'};
+    // impress.scale = 3.0f;
+
     if (engine->pad.isCrossClicked)
     {
         // engine->audio.loadSong("nob-else.wav");
@@ -101,9 +150,11 @@ void Ari::onUpdate()
     }
     if (engine->pad.isCircleClicked)
         engine->audio.playADPCM(adpcm2);
+
     camera.update(engine->pad, player.mesh);
     engine->renderer->draw(skybox);
     engine->renderer->draw(fist);
+    // engine->renderer->draw(impress, str0, str1, krom_u, krom_k, v0, c0, c1);
     engine->renderer->draw(island);
     engine->renderer->draw(islandAddons);
     engine->renderer->draw(player.mesh);
