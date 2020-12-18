@@ -43,6 +43,7 @@ void Floors::onInit()
     engine->audio.loadSong("sounds/mafikizolo-loot.wav");
     engine->audio.playSong();
     engine->audio.setSongVolume(80);
+    engine->renderer->disableVSync();
     texRepo = engine->renderer->getTextureRepository();
     enemy = new Enemy(texRepo);
     ui = new Ui(texRepo);
@@ -52,6 +53,10 @@ void Floors::onInit()
 
 void Floors::onUpdate()
 {
+    if (engine->pad.isCrossClicked)
+    {
+        printf("FPS:%f\n", engine->fps);
+    }
     ui->update(*player);
     enemy->update(*floorManager);
     lightManager.update();
@@ -59,9 +64,12 @@ void Floors::onUpdate()
     floorManager->update(*player);
     player->update(engine->pad, camera, *floorManager, *enemy);
     engine->renderer->draw(player->mesh);
-    engine->renderer->draw(enemy->getMeshes(), enemy->getMeshesCount());
+    for (u16 i = 0; i < enemy->getMeshesCount(); i++)
+        engine->renderer->draw(enemy->meshes[i]);
     for (u16 i = 0; i < FLOORS_COUNT; i++)
-        engine->renderer->drawByPath3(floorManager->floors[i].mesh, lightManager.bulbs, lightManager.bulbsCount);
+        engine->renderer->draw(floorManager->floors[i].mesh, lightManager.bulbs, lightManager.bulbsCount);
+    // TODO:
+    // engine->renderer->draw(floorManager->getMeshes(), FLOORS_COUNT, lightManager.bulbs, lightManager.bulbsCount);
     ui->render(engine->renderer); // 2D rendering ist LAST step, because layers gonna play there.
 }
 

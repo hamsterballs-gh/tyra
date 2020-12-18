@@ -24,10 +24,10 @@ Ui::Ui(TextureRepository *t_texRepo)
     isTask2Done = false;
 
     info.size.set(128.0F, 32.0F);
-    info.position.set(500.0F, 430.0F);
+    info.position.set(500.0F, 400.0F);
 
     reward.size.set(128.0F, 128.0F);
-    reward.position.set(500.0F, 280.0F);
+    reward.position.set(500.0F, 240.0F);
     reward.flipVertically(true);
 
     task1.size.set(128.0F, 32.0F);

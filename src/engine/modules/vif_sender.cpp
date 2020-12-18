@@ -17,8 +17,8 @@
 #include "../include/utils/debug.hpp"
 
 const u32 VU1_PACKAGE_VERTS_PER_BUFF = 96; // Remember to modify buffer size in vu1 also
-const u32 VU1_PACKAGES_PER_PACKET = 6;
-const u32 VU1_PACKET_SIZE = 128;
+const u32 VU1_PACKAGES_PER_PACKET = 9;
+const u32 VU1_PACKET_SIZE = 256; // should be 128, but 256 is more safe for future
 
 // ----
 // Constructors/Destructors
@@ -39,16 +39,26 @@ VifSender::VifSender(Light *t_light)
     uploadMicroProgram();
     packets[0] = packet2_create(VU1_PACKET_SIZE, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
     packets[1] = packet2_create(VU1_PACKET_SIZE, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
-    matricesPacket = packet2_create(4, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
     context = 0;
-    setDoubleBuffer();
+
+    gsScale.identity();
+    float width = 640.0F;
+    float height = 224.0F;
+    s32 depthBits = 24; // or 28(fog) or 16
+    int maxDepthValue = (1 << depthBits) - 1;
+    gsScale.setScale(Vector3(width / 2.0F, -1 * height / 2.0F, -1 * (float)maxDepthValue / 2.0F));
+    ident.identity();
+    xClip = (float)2048.0F / (width * 2.0F);
+    yClip = (float)2048.0F / (height * 2.0F);
+    depthClipToGs = (float)((1 << depthBits) - 1) / 2.0f;
+    depthClip = 2048.0F / depthClipToGs;
+    setDoubleBufferAndClip();
 }
 
 VifSender::~VifSender()
 {
     packet2_free(packets[0]);
     packet2_free(packets[1]);
-    packet2_free(matricesPacket);
 }
 
 // ----
@@ -69,24 +79,48 @@ void VifSender::uploadMicroProgram()
     packet2_free(packet2);
 }
 
-void VifSender::sendMatrices(const RenderData &t_renderData, const Vector3 &t_position, const Vector3 &t_rotation)
+void VifSender::setDoubleBufferAndClip()
 {
-    vec3ToNative(position, t_position, 1.0F);
-    vec3ToNative(rotation, t_rotation, 1.0F);
-    MATRIX localWorld, localScreen;
-    create_local_world(localWorld, position, rotation);
-    create_local_screen(localScreen, localWorld, t_renderData.worldView->data, t_renderData.perspective->data);
-    // Small undo, because im testing new matrix funcs, which are DIFFERENT than PS2SDK, so cant be used right now.
-    // Matrix viewProj = Matrix();
-    // viewProj.rotation(t_rotation);                                   // model matrix
-    // viewProj.translate(t_position);                                  // model matrix
-    // viewProj *= *t_renderData.worldView * *t_renderData.perspective; // viewproj = model * (view * projection)
-    packet2_reset(matricesPacket, false);
-    // packet2_utils_vu_add_unpack_data(matricesPacket, 0, &viewProj.data, 8, 0);
-    packet2_utils_vu_add_unpack_data(matricesPacket, 0, localScreen, 8, 0);
-    packet2_utils_vu_add_end_tag(matricesPacket);
+    packet2_t *settings = packet2_create(8, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
+    packet2_utils_vu_open_unpack(settings, 0, false);
+    {
+        packet2_add_float(settings, Math::max(xClip, 1.0F)); // x clip
+        packet2_add_float(settings, Math::max(yClip, 1.0F)); // y clip
+        packet2_add_float(settings, depthClip * 1.003F);     // depth clip
+        packet2_add_s32(settings, 1);                        // enable clipping
+    }
+    packet2_utils_vu_close_unpack(settings);
+    packet2_utils_vu_add_double_buffer(settings, 10, 498); // give some space for static params
+    packet2_utils_vu_add_end_tag(settings);
+    dma_channel_send_packet2(settings, DMA_CHANNEL_VIF1, 1);
     dma_channel_wait(DMA_CHANNEL_VIF1, 0);
-    dma_channel_send_packet2(matricesPacket, DMA_CHANNEL_VIF1, 1);
+    packet2_free(settings);
+}
+
+void VifSender::calcModelViewProjMatrix(const RenderData &t_renderData, const Vector3 &t_position, const Vector3 &t_rotation)
+{
+    modelViewProj.identity();
+
+    translate.translation(t_position);
+    modelViewProj &= translate;
+
+    rotate.rotationX(t_rotation.x);
+    modelViewProj &= rotate;
+
+    rotate.rotationY(t_rotation.y);
+    modelViewProj &= rotate;
+
+    rotate.rotationZ(t_rotation.z);
+    modelViewProj &= rotate;
+
+    modelViewProj = *t_renderData.worldView & modelViewProj;
+
+    // NEW multiply!
+    Matrix projection = ident & *t_renderData.perspective;
+    modelViewProj = projection & modelViewProj; // CHECKED
+
+    // NEW multiply!
+    modelViewProj = gsScale & modelViewProj;
 }
 
 void VifSender::drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 vertCount2, VECTOR *vertices, VECTOR *normals, VECTOR *coordinates, Mesh &t_mesh, LightBulb *t_bulbs, u16 t_bulbsCount, texbuffer_t *textureBuffer)
@@ -119,82 +153,158 @@ void VifSender::drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 ver
     }
 }
 
-void VifSender::setDoubleBuffer()
-{
-    packet2_t *settings = packet2_create(2, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
-    packet2_utils_vu_add_double_buffer(settings, 8, 496);
-    packet2_utils_vu_add_end_tag(settings);
-    dma_channel_send_packet2(settings, DMA_CHANNEL_VIF1, 1);
-    dma_channel_wait(DMA_CHANNEL_VIF1, 0);
-    packet2_free(settings);
-}
-
 /** Draw using PATH1 */
 void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_vertices, VECTOR *t_coordinates, prim_t *t_prim, texbuffer_t *textureBuffer)
 {
     const u32 vertCount = t_end - t_start;
     u32 vif_added_bytes = 0;
-    packet2_utils_vu_open_unpack(currPacket, 0, 1);
-    // TODO get this via screensettings
-    packet2_add_float(currPacket, 2048.0F);                   // scale
-    packet2_add_float(currPacket, 2048.0F);                   // scale
-    packet2_add_float(currPacket, ((float)0xFFFFFF) / 32.0F); // scale
-    packet2_add_u32(currPacket, vertCount);                   // vertex count
-    packet2_utils_gif_add_set(currPacket, 1);
-    packet2_utils_gs_add_lod(currPacket, &t_mesh.lod);
-    packet2_utils_gs_add_texbuff_clut(currPacket, textureBuffer, &t_mesh.clut);
-    packet2_utils_gs_add_prim_giftag(currPacket, t_prim, vertCount, DRAW_STQ2_REGLIST, 3, 0);
+    packet2_utils_vu_open_unpack(currPacket, 0, true);
+    {
+        packet2_add_data(currPacket, modelViewProj.data, 4);
+        packet2_add_s32(currPacket, 0); // not used for now
+        packet2_add_s32(currPacket, vertCount);
+        packet2_add_s32(currPacket, vertCount / 3);
+        packet2_add_float(currPacket, depthClipToGs);
+        packet2_utils_gif_add_set(currPacket, 1);
+        packet2_utils_gs_add_lod(currPacket, &t_mesh.lod);
+        packet2_utils_gs_add_texbuff_clut(currPacket, textureBuffer, &t_mesh.clut);
+        packet2_utils_gs_add_prim_giftag(currPacket, t_prim, vertCount, DRAW_STQ2_REGLIST, 3, 0);
 
-    packet2_add_u32(currPacket, t_mesh.color.r);
-    packet2_add_u32(currPacket, t_mesh.color.g);
-    packet2_add_u32(currPacket, t_mesh.color.b);
-    packet2_add_u32(currPacket, t_mesh.color.a);
-
-    // Clipping tests start
-
-    // // const float minZ = 1;
-    // // const float maxZ = 65535;
-    // // const int iGuardDimXY = 2048;
-
-    // // vu1.addFloat(1.0F); // f_TODO clipping maybe there is problem?
-    // // vu1.addFloat(1.0F);
-    // // vu1.addFloat(1.0F);
-    // // vu1.addFloat(1.0F);
-    // //  float xClip = (float)2048.0f/(drawContext.GetFBWidth() * 0.5f * 2.0f);
-    // //       packet += Math::Max( xClip, 1.0f );
-    // //       float yClip = (float)2048.0f/(drawContext.GetFBHeight() * 0.5f * 2.0f);
-    // //       packet += Math::Max( yClip, 1.0f );
-    // //       float depthClip = 2048.0f / depthClipToGs;
-    // //       // F_FIXME: maybe these 2048's should be 2047.5s...
-    // //       depthClip *= 1.003f; // round up a bit for fp error (????)
-    // //       packet += depthClip;
-    // //       // enable/disable clipping
-    // //       packet += (drawContext.GetDoClipping()) ? 1 : 0;
-
-    // u32 depthBits = 24; // or 28(fog) or 16
-    // float depthClipToGs = (float)((1 << depthBits) - 1) / 2.0f;
-    // vu1.addFloat(2048.0f / (640.0F * 0.5f * 2.0f));
-    // vu1.addFloat(2048.0f / (480.0F * 0.5f * 2.0f));
-    // vu1.addFloat((2048.0f / depthClipToGs) * 1.003F);
-    // // vu1.addFloat(2048.0F);                   // scale
-    // // vu1.addFloat(2048.0F);                   // scale
-    // // vu1.addFloat(((float)0xFFFFFF) / 32.0F); // scale
-    // vu1.addFloat(0.0F);
-    // // vu1.addFloat(0.5f * iGuardDimXY);
-    // // vu1.addFloat(-0.5f * iGuardDimXY);
-    // // vu1.addFloat(1.0F);
-    // // vu1.addFloat(500.0F); // far
-
-    packet2_add_float(currPacket, 0.0F);
-    packet2_add_float(currPacket, 0.0F);
-    packet2_add_float(currPacket, 0.0F);
-    packet2_add_float(currPacket, 0.0F);
-
-    //// Clipping tests end
+        packet2_add_u32(currPacket, t_mesh.color.r);
+        packet2_add_u32(currPacket, t_mesh.color.g);
+        packet2_add_u32(currPacket, t_mesh.color.b);
+        packet2_add_u32(currPacket, t_mesh.color.a);
+    }
     vif_added_bytes += packet2_utils_vu_close_unpack(currPacket);
-    packet2_utils_vu_add_unpack_data(currPacket, vif_added_bytes, t_vertices + t_start, vertCount, 1);
+    packet2_utils_vu_add_unpack_data(currPacket, vif_added_bytes, t_vertices + t_start, vertCount, true);
     vif_added_bytes += vertCount;
-    packet2_utils_vu_add_unpack_data(currPacket, vif_added_bytes, t_coordinates + t_start, vertCount, 1);
+    packet2_utils_vu_add_unpack_data(currPacket, vif_added_bytes, t_coordinates + t_start, vertCount, true);
     vif_added_bytes += vertCount;
     packet2_utils_vu_add_start_program(currPacket, 0);
 }
+
+// void VifSender::drawTheSameWithOtherMatrices(const RenderData &t_renderData, Mesh *t_meshes, const u32 &t_skip, const u32 &t_count)
+// {
+//     // DUPLICATE!!!!!!!!!!!!
+//     packet2_t *packet2 = packet2_create(300, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
+//     u8 switchCounter = 0;
+//     for (u32 i = t_skip; i < t_count; i++)
+//     {
+//         Matrix modelView = Matrix();
+
+//         translate.translation(t_meshes[i].position);
+//         modelView.identity();
+//         modelView = modelView & translate;
+
+//         rotate.rotationX(t_meshes[i].rotation.x);
+//         modelView &= rotate;
+
+//         rotate.rotationY(t_meshes[i].rotation.y);
+//         modelView &= rotate;
+
+//         rotate.rotationZ(t_meshes[i].rotation.z);
+//         modelView &= rotate;
+
+//         modelView = *t_renderData.worldView & modelView;
+
+//         // NEW multiply!
+//         Matrix projection = ident & frustum;
+//         Matrix viewProj = projection & modelView;
+
+//         // NEW multiply!
+//         viewProj = gsScale & viewProj;
+//         packet2_utils_vu_open_unpack(packet2, 0, true);
+//         {
+//             packet2_add_data(packet2, viewProj.data, 4);
+//         }
+//         packet2_utils_vu_close_unpack(packet2);
+//         packet2_utils_vu_open_unpack(packet2, 9, true);
+//         {
+//             packet2_add_u32(packet2, t_meshes[i].color.r);
+//             packet2_add_u32(packet2, t_meshes[i].color.g);
+//             packet2_add_u32(packet2, t_meshes[i].color.b);
+//             packet2_add_u32(packet2, t_meshes[i].color.a);
+//         }
+//         packet2_utils_vu_close_unpack(packet2);
+//         packet2_utils_vu_add_start_program(packet2, 0);
+
+//         if (switchCounter++ >= 32)
+//         {
+//             switchCounter = 0;
+//             packet2_utils_vu_add_end_tag(packet2);
+//             dma_channel_wait(DMA_CHANNEL_VIF1, 0);
+//             dma_channel_send_packet2(packet2, DMA_CHANNEL_VIF1, 1);
+//             packet2_reset(packet2, false);
+//         }
+//     }
+//     if (switchCounter != 0)
+//     {
+//         packet2_utils_vu_add_end_tag(packet2);
+//         dma_channel_wait(DMA_CHANNEL_VIF1, 0);
+//         dma_channel_send_packet2(packet2, DMA_CHANNEL_VIF1, 1);
+//     }
+//     packet2_free(packet2);
+// }
+
+// void VifSender::drawTheSameWithOtherMatrices(const RenderData &t_renderData, Mesh **t_meshes, const u32 &t_skip, const u32 &t_count)
+// {
+//     // DUPLICATE!!!!!!!!!!!!
+//     packet2_t *packet2 = packet2_create(300, P2_TYPE_NORMAL, P2_MODE_CHAIN, true);
+//     u8 switchCounter = 0;
+//     for (u32 i = t_skip; i < t_count; i++)
+//     {
+//         Matrix modelView = Matrix();
+
+//         translate.translation(t_meshes[i]->position);
+//         modelView.identity();
+//         modelView = modelView & translate;
+
+//         rotate.rotationX(t_meshes[i]->rotation.x);
+//         modelView &= rotate;
+
+//         rotate.rotationY(t_meshes[i]->rotation.y);
+//         modelView &= rotate;
+
+//         rotate.rotationZ(t_meshes[i]->rotation.z);
+//         modelView &= rotate;
+
+//         modelView = *t_renderData.worldView & modelView;
+
+//         // NEW multiply!
+//         Matrix projection = ident & frustum;
+//         Matrix viewProj = projection & modelView;
+
+//         // NEW multiply!
+//         viewProj = gsScale & viewProj;
+//         packet2_utils_vu_open_unpack(packet2, 0, true);
+//         {
+//             packet2_add_data(packet2, viewProj.data, 4);
+//         }
+//         packet2_utils_vu_close_unpack(packet2);
+//         packet2_utils_vu_open_unpack(packet2, 9, true);
+//         {
+//             packet2_add_u32(packet2, t_meshes[i]->color.r);
+//             packet2_add_u32(packet2, t_meshes[i]->color.g);
+//             packet2_add_u32(packet2, t_meshes[i]->color.b);
+//             packet2_add_u32(packet2, t_meshes[i]->color.a);
+//         }
+//         packet2_utils_vu_close_unpack(packet2);
+//         packet2_utils_vu_add_start_program(packet2, 0);
+
+//         if (switchCounter++ >= 32)
+//         {
+//             switchCounter = 0;
+//             packet2_utils_vu_add_end_tag(packet2);
+//             dma_channel_wait(DMA_CHANNEL_VIF1, 0);
+//             dma_channel_send_packet2(packet2, DMA_CHANNEL_VIF1, 1);
+//             packet2_reset(packet2, false);
+//         }
+//     }
+//     if (switchCounter != 0)
+//     {
+//         packet2_utils_vu_add_end_tag(packet2);
+//         dma_channel_wait(DMA_CHANNEL_VIF1, 0);
+//         dma_channel_send_packet2(packet2, DMA_CHANNEL_VIF1, 1);
+//     }
+//     packet2_free(packet2);
+// }

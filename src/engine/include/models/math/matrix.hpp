@@ -19,7 +19,7 @@ class Matrix
 {
 
 public:
-    float data[16];
+    float data[16] __attribute__((aligned(64)));
 
     Matrix(float m11, float m12, float m13, float m14,
            float m21, float m22, float m23, float m24,
@@ -28,11 +28,16 @@ public:
     Matrix(const Matrix &v);
     Matrix operator*(const Matrix &v);
     void operator*=(const Matrix &v);
+    /** New multiply! */
+    Matrix operator&(const Matrix &v);
+    /** New multiply! */
+    void operator&=(const Matrix &v);
     Matrix();
     ~Matrix();
 
-    void lookAt(Vector3 &t_up, Vector3 &t_position, Vector3 &t_target);
+    void lookAt(Vector3 &t_position, Vector3 &t_target);
     void identity();
+    // TODO clear();
     inline void unit() { identity(); };
 
     // Translation
@@ -46,10 +51,6 @@ public:
     }
 
     // Rotation
-
-    void rotateX(const float &t_radians);
-    void rotateY(const float &t_radians);
-    void rotateZ(const float &t_radians);
 
     inline void rotationX(const float &t_radians)
     {
@@ -69,23 +70,32 @@ public:
         rotateZ(t_radians);
     }
 
-    inline void rotate(const Vector3 &t_val)
-    {
-        rotateX(t_val.x);
-        rotateY(t_val.y);
-        rotateX(t_val.z);
-    }
+    // inline void rotate(const Vector3 &t_val)
+    // {
+    //     rotateX(t_val.x);
+    //     rotateY(t_val.y);
+    //     rotateX(t_val.z);
+    // }
 
-    inline void rotation(const Vector3 &t_val)
-    {
-        identity();
-        rotate(t_val);
-    }
+    // inline void rotation(const Vector3 &t_val)
+    // {
+    //     identity();
+    //     rotate(t_val);
+    // }
+
+    void rotationByAngle(const float &t_angle, const Vector3 &t_axis);
 
     //
-
+    void setScale(const Vector3 &t_val);
     void setPerspective(ScreenSettings &screen);
+    void setFrustum(ScreenSettings &t_screen);
     const void print() const;
+
+private:
+    void rotateX(const float &t_radians);
+    void rotateY(const float &t_radians);
+    void rotateZ(const float &t_radians);
+    void camera(const Vector3 &pos, const Vector3 &vz, const Vector3 &vy);
 };
 
 #endif

@@ -79,6 +79,7 @@ public:
      * NOTICE: Animation supported, lighting NOT supported (at this moment)
      */
     void draw(Mesh *t_meshes, u16 t_amount, LightBulb *t_bulbs, u16 t_bulbsCount);
+    // void draw(Mesh **t_meshes, u16 t_amount, LightBulb *t_bulbs, u16 t_bulbsCount);
 
     /** 
      * Draw mesh with lighting information.
@@ -93,6 +94,7 @@ public:
      * NOTICE: Animation supported, lighting NOT supported (at this moment)
      */
     void draw(Mesh *t_meshes, u16 t_amount);
+    // void draw(Mesh **t_meshes, u16 t_amount);
 
     /** 
      * Draw mesh without lighting information.
@@ -118,6 +120,7 @@ private:
     // We have some GCC bug here. Just try to reorder declarations. For example move worldColor up - game will crash.
     void changeTexture(Texture *t_tex);
     u32 lastTextureId;
+    u8 areBuffersAllocated;
     texbuffer_t textureBuffer;
     u8 isTextureVRAMAllocated, isVSyncEnabled;
     void allocateTextureBuffer(Texture *t_texture);
@@ -134,8 +137,8 @@ private:
     VifSender *vifSender;
     packet2_t *flipPacket;
     color_t worldColor;
-    void allocateBuffers(float t_screenW, float t_screenH);
-    void initDrawingEnv(float t_screenW, float t_screenH);
+    void allocateBuffers();
+    void initDrawingEnv();
     void setPrim();
 };
 

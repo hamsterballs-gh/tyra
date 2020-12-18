@@ -52,7 +52,8 @@ private:
     u8 packetsCount;
     int packetSize;
     float halfScreenW, halfScreenH;
-    MATRIX localWorld, localScreen, localLight;
+    Matrix frustum, ident, modelView, translate, rotate;
+    MATRIX localLight;
 
     void calc3DObject(Matrix t_perspective, Mesh &t_mesh, u32 vertexCount, VECTOR *vertices, VECTOR *normals, VECTOR *coordinates, RenderData *t_renderData, LightBulb *t_bulbs, u16 t_bulbsCount);
     void convertCalcs(u32 t_vertCount, VECTOR *t_vertices, VECTOR *t_colors, VECTOR *t_sts, color_t &t_color);

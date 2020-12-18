@@ -1,5 +1,3 @@
-
-
 /*
 # ______       ____   ___
 #   |     \/   ____| |___|    
@@ -10,17 +8,13 @@
 # Sandro Sobczyński <sandro.sobczynski@gmail.com>
 */
 
-#ifndef _TYRA_SCREEN_SETTINGS_
-#define _TYRA_SCREEN_SETTINGS_
+#include "test.hpp"
 
-struct ScreenSettings
+int main()
 {
-    float fov;
-    float width;
-    float height;
-    float aspectRatio;
-    float nearPlaneDist;
-    float farPlaneDist;
-};
-
-#endif
+    Engine engine = Engine();
+    Test game = Test(&engine);
+    game.engine->init(&game, 128);
+    SleepThread();
+    return 0;
+}

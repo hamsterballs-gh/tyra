@@ -35,6 +35,8 @@ GifSender::GifSender(u32 t_packetSize, ScreenSettings *t_screen, Light *t_light)
     packetSize = t_packetSize;
     packets[0] = packet2_create(t_packetSize, P2_TYPE_NORMAL, P2_MODE_CHAIN, false);
     packets[1] = packet2_create(t_packetSize, P2_TYPE_NORMAL, P2_MODE_CHAIN, false);
+
+    ident.identity();
     PRINT_LOG("GifSender initialized!");
 }
 
@@ -163,20 +165,39 @@ void GifSender::addObject(RenderData *t_renderData, Mesh &t_mesh, u32 vertexCoun
 void GifSender::calc3DObject(Matrix t_perspective, Mesh &t_mesh, u32 vertexCount, VECTOR *vertices, VECTOR *normals, VECTOR *coordinates, RenderData *t_renderData, LightBulb *t_bulbs, u16 t_bulbsCount)
 {
     VECTOR *colors = new VECTOR[vertexCount];
-    VECTOR position, rotation;
-
-    vec3ToNative(position, t_mesh.position, 1.0F);
+    VECTOR rotation;
     vec3ToNative(rotation, t_mesh.rotation, 1.0F);
 
-    create_local_world(localWorld, position, rotation);
+    Matrix projection = ident & *t_renderData->perspective;
+    translate.translation(t_mesh.position);
+    modelView.identity();
+    modelView = modelView & translate;
+
+    rotate.rotationX(t_mesh.rotation.x);
+    modelView &= rotate;
+
+    rotate.rotationY(t_mesh.rotation.y);
+    modelView &= rotate;
+
+    rotate.rotationZ(t_mesh.rotation.z);
+    modelView &= rotate;
+
+    // Matrix rotate1 = Matrix();
+    // rotate1.rotationByAngle(camera_azi, Vector3(0.0F, 1.0F, 0.0F));
+    // view = view & rotate1;
+
+    // Matrix rotate2 = Matrix();
+    // rotate2.rotationByAngle(t_rotation.z, Vector3(-1.0F, 0.0F, 0.0F));
+    // modelView = modelView & rotate2;
+
+    modelView = *t_renderData->worldView & modelView;
+
+    Matrix viewProj = projection & modelView; // CHECKED
 
     const u8 SHOULD_BE_LIGHTED = t_bulbs != NULL && t_mesh.shouldBeLighted;
 
     if (SHOULD_BE_LIGHTED)
         create_local_light(localLight, rotation);
-
-    // I cant put perspective from renderData here. ee-gcc bug?
-    create_local_screen(localScreen, localWorld, t_renderData->worldView->data, t_perspective.data);
 
     if (SHOULD_BE_LIGHTED)
     {
@@ -214,7 +235,7 @@ void GifSender::calc3DObject(Matrix t_perspective, Mesh &t_mesh, u32 vertexCount
             colors[i][2] = t_mesh.color.b / 128.0F;
         }
 
-    calculate_vertices(vertices, vertexCount, vertices, localScreen);
+    calculate_vertices(vertices, vertexCount, vertices, viewProj.data);
 
     convertCalcs(vertexCount, vertices, colors, coordinates, t_mesh.color);
 

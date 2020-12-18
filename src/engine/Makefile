@@ -34,9 +34,12 @@ all: $(EE_OBJS)
 	ar rcs $(LIB_NAME) $(EE_OBJS)
 	rm -f $(EE_OBJS)
 
+%.vcl: %.vclpp
+	$(EE_VCLPP) $< $@
+
 # https://github.com/microsoft/wsl/issues/2468#issuecomment-374904520
-#%.vsm: %.vcl # sudo service binfmt-support start
-#	$(EE_VCL) $< >> $@
+%.vsm: %.vcl # sudo service binfmt-support start
+	$(EE_VCL) $< >> $@
 
 %.o: %.vsm
 	$(EE_DVP) $< -o $@

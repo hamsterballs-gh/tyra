@@ -30,19 +30,22 @@ public:
 
     // TODO refactor
     void drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 vertCount2, VECTOR *vertices, VECTOR *normals, VECTOR *coordinates, Mesh &t_mesh, LightBulb *t_bulbs, u16 t_bulbsCount, texbuffer_t *textureBuffer);
-    void sendMatrices(const RenderData &t_renderData, const Vector3 &t_position, const Vector3 &t_rotation);
+    void calcModelViewProjMatrix(const RenderData &t_renderData, const Vector3 &t_position, const Vector3 &t_rotation);
+    // void drawTheSameWithOtherMatrices(const RenderData &t_renderData, Mesh *t_meshes, const u32 &t_skip, const u32 &t_count);
+    // void drawTheSameWithOtherMatrices(const RenderData &t_renderData, Mesh **t_meshes, const u32 &t_skip, const u32 &t_count);
 
 private:
     Light *light;
     void uploadMicroProgram();
-    void setDoubleBuffer();
+    void setDoubleBufferAndClip();
     void drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_vertices, VECTOR *t_coordinates, prim_t *t_prim, texbuffer_t *textureBuffer);
     packet2_t *packets[2] __attribute__((aligned(64)));
     packet2_t *currPacket;
     u8 context;
-    packet2_t *matricesPacket __attribute__((aligned(64)));
     VECTOR position, rotation;
     u32 vertCount;
+    float xClip, yClip, depthClip, depthClipToGs;
+    Matrix gsScale, ident, modelViewProj, translate, rotate;
 };
 
 #endif
