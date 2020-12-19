@@ -36,7 +36,8 @@ void Camera::update(Pad &t_pad, Mesh &t_mesh)
 {
     rotate(t_pad);
     followBy(t_mesh);
-    Vector3 lookPos = Vector3(t_mesh.position.x, t_mesh.position.y + 10.0F, t_mesh.position.z);
+    Vector3 lookPos = Vector3(t_mesh.position.x, t_mesh.position.y - 20.0F, t_mesh.position.z);
+    // Vector3 lookPos = Vector3(t_mesh.position.x, t_mesh.position.y - 40.0F, t_mesh.position.z);
     lookAt(lookPos);
 }
 

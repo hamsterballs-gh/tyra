@@ -46,7 +46,7 @@ void Engine::setDefaultScreen()
     screen.fov = 40.0F;
     screen.aspectRatio = 640.0F / 448.0F;
     screen.width = 640.0F;
-    screen.height = 448.0F;
+    screen.height = 224.0F;
 }
 
 void Engine::init(Game *t_game, u32 t_gifPacketSize)

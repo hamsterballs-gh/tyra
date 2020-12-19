@@ -16,7 +16,7 @@
 // Constructors/Destructors
 // ----
 
-const u16 WATER_TILES_COUNT = 144;
+const u16 WATER_TILES_COUNT = 36;
 
 Test::Test(Engine *t_engine) : engine(t_engine), camera(&engine->screen)
 {
@@ -84,11 +84,16 @@ void Test::onUpdate()
     // - A lot of code needs refactor, but at first it must work.
     // - vclpp needed - https://github.com/glampert/vclpp
 
+    // - Refactor drawTheSameWithOtherMatrices()
+    // - 2x duplicate, vif sender i renderer
+    // - Bug z floorsami
+
     padStuff();
     camera.update(engine->pad, waterFloors[0]);
     engine->renderer->draw(triangle);
-    for (size_t i = 0; i < WATER_TILES_COUNT; i++)
-        engine->renderer->draw(waterFloors[i]);
+    // for (size_t i = 0; i < WATER_TILES_COUNT; i++)
+    //     engine->renderer->draw(waterFloors[i]);
+    engine->renderer->draw(waterFloors[13]);
 }
 
 void Test::padStuff()

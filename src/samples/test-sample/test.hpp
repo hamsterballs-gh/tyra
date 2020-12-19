@@ -17,6 +17,7 @@
 #include <engine.hpp>
 #include <modules/texture_repository.hpp>
 #include "./camera.hpp"
+#include "models/sprite.hpp"
 
 class Test : public Game
 {

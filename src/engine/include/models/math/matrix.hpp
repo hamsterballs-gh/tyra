@@ -12,6 +12,7 @@
 #define _TYRA_MATRIX_
 
 #include "vector3.hpp"
+#include <math3d.h>
 #include "../screen_settings.hpp"
 
 /** https://en.wikipedia.org/wiki/Matrix_(mathematics) */
@@ -95,7 +96,7 @@ private:
     void rotateX(const float &t_radians);
     void rotateY(const float &t_radians);
     void rotateZ(const float &t_radians);
-    void camera(const Vector3 &pos, const Vector3 &vz, const Vector3 &vy);
+    void camera(VECTOR pos, VECTOR vz, VECTOR vy);
 };
 
 #endif

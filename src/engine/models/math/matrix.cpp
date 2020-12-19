@@ -431,7 +431,7 @@ void Matrix::setFrustum(ScreenSettings &t_screen)
     this->data[15] = 0.0F;
 }
 
-void Matrix::camera(const Vector3 &t_pos, const Vector3 &t_vz, const Vector3 &t_vy)
+void Matrix::camera(VECTOR t_pos, VECTOR t_vz, VECTOR t_vy)
 {
     //	Matrix  vf4, vf5, vf6, vf7
     //	t_pos   vf8
@@ -494,7 +494,7 @@ void Matrix::camera(const Vector3 &t_pos, const Vector3 &t_vz, const Vector3 &t_
         "sq				$10, 0x20(%0) \n\t"
         "sqc2			vf5, 0x30(%0) \n\t"
         :
-        : "r"(this->data), "r"(t_pos.xyz), "r"(t_vz.xyz), "r"(t_vy.xyz)
+        : "r"(this->data), "r"(t_pos), "r"(t_vz), "r"(t_vy)
         : "$8", "$9", "$10", "$11", "$12", "$13", "$14", "$15");
 }
 
@@ -507,7 +507,9 @@ void Matrix::camera(const Vector3 &t_pos, const Vector3 &t_vz, const Vector3 &t_
 */
 void Matrix::lookAt(Vector3 &t_position, Vector3 &t_target)
 {
-    Vector3 up_vec, view_vec;
+    VECTOR up_vec, view_vec;
+    VECTOR eye = {t_position.x, t_position.y, t_position.z, 1.0F};
+    VECTOR obj = {t_target.x, t_target.y, t_target.z, 1.0F};
     asm __volatile__(
         "lqc2           vf4, 0x00(%2)	# eye                               \n\t"
         "lqc2		    vf5, 0x00(%3)	# obj                               \n\t"
@@ -519,11 +521,12 @@ void Matrix::lookAt(Vector3 &t_position, Vector3 &t_target)
         "vopmula.xyz	ACC, vf7, vf9                                       \n\t"
         "vopmsub.xyz	vf8, vf9, vf7	# up_vec = vf8                      \n\t"
         "sqc2		    vf7, 0x00(%0)	# view_vec                          \n\t"
-        "sqc2		    vf8, 0x00(%1)	# up_vec                            \n\t"
+        "sqc2		    vf6, 0x00(%1)	# up_vec                            \n\t"
         :
-        : "r"(view_vec.xyz), "r"(up_vec.xyz), "r"(t_position.xyz), "r"(t_target.xyz));
+        : "r"(view_vec), "r"(up_vec), "r"(eye), "r"(obj));
     Matrix temp;
-    temp.camera(t_position, view_vec, up_vec);
+    // printf("X:%f Y:%f Z:%f W:%f\n", up_vec[0], up_vec[1], up_vec[2], up_vec[3]);
+    temp.camera(eye, view_vec, up_vec);
     unit();
     operator&=(temp);
 }

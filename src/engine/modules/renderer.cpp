@@ -148,11 +148,10 @@ void Renderer::draw(Sprite &t_sprite)
     packet2_utils_gs_add_texbuff_clut(packet2, &textureBuffer, &t_sprite.clut);
     draw_enable_blending();
     packet2_update(packet2, draw_rect_textured(packet2->next, 0, &rect));
-    float gsCenterX, gsCenterY;
-    gsCenterX = gsCenterY = 4096.0F / 2.0F;
-    gsCenterX -= frameBuffers[0].width / 2.0F;
-    gsCenterY -= frameBuffers[0].height / 2.0F;
-    packet2_update(packet2, draw_primitive_xyoffset(packet2->next, 0, gsCenterX, gsCenterY));
+    float gsCenter = 4096.0F / 2.0F;
+    float gsOffsetX = gsCenter - frameBuffers[0].width / 2.0F;
+    float gsOffsetY = gsCenter - frameBuffers[0].height / 2.0F;
+    packet2_update(packet2, draw_primitive_xyoffset(packet2->next, 0, gsOffsetX, gsOffsetY));
     draw_disable_blending();
     packet2_update(packet2, draw_finish(packet2->next));
     dma_channel_wait(DMA_CHANNEL_GIF, 0);
@@ -166,13 +165,16 @@ void Renderer::initDrawingEnv()
     if (!areBuffersAllocated)
         PRINT_ERR("Buffers not initialized!");
     PRINT_LOG("Initializing drawing environment");
-    float gsCenterX, gsCenterY;
-    gsCenterX = gsCenterY = 4096.0F / 2.0F;
-    gsCenterX -= frameBuffers[0].width / 2.0F;
-    gsCenterY -= frameBuffers[0].height / 2.0F;
+    float gsCenter = 4096.0F / 2.0F;
+    float gsOffsetX = gsCenter - (frameBuffers[0].width / 2.0F);
+    float gsOffsetY = gsCenter - (frameBuffers[0].height / 2.0F);
+    // printf("----------\n");
+    // printf("Offset[Y]:%f\n", gsOffsetY);
+    // printf("----------\n");
+    // gsOffsetY = 1836.0F;
     packet2_t *packet2 = packet2_create(20, P2_TYPE_NORMAL, P2_MODE_NORMAL, 0);
     packet2_update(packet2, draw_setup_environment(packet2->base, 0, frameBuffers, &(zBuffer))); // OK gsOffsetX.cpp:220
-    packet2_update(packet2, draw_primitive_xyoffset(packet2->next, 0, gsCenterX, gsCenterY));    // OK gsOffsetX.cpp:159
+    packet2_update(packet2, draw_primitive_xyoffset(packet2->next, 0, gsOffsetX, gsOffsetY));    // OK gsOffsetX.cpp:159
     packet2_update(packet2, draw_finish(packet2->next));
     // packet2_update(packet2, draw_scissor_area(packet2->next, 0, 0, frameBuffers[0].width - 1, 0, frameBuffers[0].height - 1));
     dma_channel_send_packet2(packet2, DMA_CHANNEL_GIF, true);
@@ -206,14 +208,14 @@ void Renderer::setWorldColor(const color_t &t_rgb)
 /** Defines and allocates framebuffers and zbuffer */
 void Renderer::allocateBuffers()
 {
-    frameBuffers[0].width = (s32)screen->width;       // 640
-    frameBuffers[0].height = (s32)screen->height / 2; // interlacing
+    frameBuffers[0].width = (s32)screen->width;   // 640
+    frameBuffers[0].height = (s32)screen->height; // interlacing
     frameBuffers[0].mask = 0;
     frameBuffers[0].psm = GS_PSM_32; // 32
     frameBuffers[0].address = graph_vram_allocate(frameBuffers[0].width, frameBuffers[0].height, frameBuffers[0].psm, GRAPH_ALIGN_PAGE);
 
     frameBuffers[1].width = (s32)screen->width;
-    frameBuffers[1].height = (s32)screen->height / 2; // interlacing
+    frameBuffers[1].height = (s32)screen->height; // interlacing
     frameBuffers[1].mask = 0;
     frameBuffers[1].psm = GS_PSM_32; // 32
     frameBuffers[1].address = graph_vram_allocate(frameBuffers[1].width, frameBuffers[1].height, frameBuffers[1].psm, GRAPH_ALIGN_PAGE);
@@ -226,7 +228,7 @@ void Renderer::allocateBuffers()
     PRINT_LOG("Framebuffers, zBuffer set and allocated!");
 
     graph_set_mode(GRAPH_MODE_NONINTERLACED, graph_get_region(), GRAPH_MODE_FIELD, GRAPH_ENABLE);
-    graph_set_screen(0, 0, (s32)screen->width, (s32)screen->height / 2); // manual interlacing
+    graph_set_screen(0, 0, (s32)screen->width, (s32)screen->height); // manual interlacing
     graph_set_bgcolor(0, 0, 0);
     graph_set_framebuffer_filtered(frameBuffers[0].address, (s32)screen->width, frameBuffers[0].psm, 0, 0);
     graph_enable_output();

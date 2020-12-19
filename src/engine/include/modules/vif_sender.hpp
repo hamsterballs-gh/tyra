@@ -45,7 +45,7 @@ private:
     VECTOR position, rotation;
     u32 vertCount;
     float xClip, yClip, depthClip, depthClipToGs;
-    Matrix gsScale, ident, modelViewProj, translate, rotate;
+    Matrix gsScale, ident, viewProj, modelViewProj, gsModelViewProj, translate, rotate; // TODO join matrices
 };
 
 #endif

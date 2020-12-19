@@ -29,6 +29,8 @@ extern u32 VU1Draw3D_CodeStart __attribute__((section(".vudata")));
 extern u32 VU1Draw3D_CodeEnd __attribute__((section(".vudata")));
 //
 
+u32 counter;
+
 VifSender::VifSender(Light *t_light)
 {
     light = t_light;
@@ -48,10 +50,13 @@ VifSender::VifSender(Light *t_light)
     int maxDepthValue = (1 << depthBits) - 1;
     gsScale.setScale(Vector3(width / 2.0F, -1 * height / 2.0F, -1 * (float)maxDepthValue / 2.0F));
     ident.identity();
-    xClip = (float)2048.0F / (width * 2.0F);
-    yClip = (float)2048.0F / (height * 2.0F);
+    xClip = (float)2048.0F / (width * .5F * 2.0F);
+    yClip = (float)2048.0F / (height * .5F * 2.0F);
+    // xClip = (float)2048.0F / (width * 2.0F);
+    // yClip = (float)2048.0F / (height * 2.0F);
     depthClipToGs = (float)((1 << depthBits) - 1) / 2.0f;
     depthClip = 2048.0F / depthClipToGs;
+    counter = 0;
     setDoubleBufferAndClip();
 }
 
@@ -87,7 +92,7 @@ void VifSender::setDoubleBufferAndClip()
         packet2_add_float(settings, Math::max(xClip, 1.0F)); // x clip
         packet2_add_float(settings, Math::max(yClip, 1.0F)); // y clip
         packet2_add_float(settings, depthClip * 1.003F);     // depth clip
-        packet2_add_s32(settings, 1);                        // enable clipping
+        packet2_add_s32(settings, 0);                        // enable clipping
     }
     packet2_utils_vu_close_unpack(settings);
     packet2_utils_vu_add_double_buffer(settings, 10, 498); // give some space for static params
@@ -113,14 +118,28 @@ void VifSender::calcModelViewProjMatrix(const RenderData &t_renderData, const Ve
     rotate.rotationZ(t_rotation.z);
     modelViewProj &= rotate;
 
-    modelViewProj = *t_renderData.worldView & modelViewProj;
+    viewProj = *t_renderData.worldView & modelViewProj; // Do sprawdzenia 1
 
     // NEW multiply!
     Matrix projection = ident & *t_renderData.perspective;
-    modelViewProj = projection & modelViewProj; // CHECKED
+    modelViewProj = projection & viewProj; // Do sprawdzenia 3
+
+    // if (counter > 500)
+    // {
+    //     printf("modelViewProj3----------------\n");
+    //     modelViewProj.print();
+    //     printf("----------------\n");
+    // }
 
     // NEW multiply!
-    modelViewProj = gsScale & modelViewProj;
+    gsModelViewProj = gsScale & modelViewProj; // Do sprawdzenia 4
+
+    // if (counter > 500)
+    // {
+    //     printf("modelViewProj4----------------\n");
+    //     gsModelViewProj.print();
+    //     printf("----------------\n");
+    // }
 }
 
 void VifSender::drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 vertCount2, VECTOR *vertices, VECTOR *normals, VECTOR *coordinates, Mesh &t_mesh, LightBulb *t_bulbs, u16 t_bulbsCount, texbuffer_t *textureBuffer)
@@ -153,6 +172,36 @@ void VifSender::drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 ver
     }
 }
 
+// Xform + perspective divide from VU1
+void test(VECTOR output, VECTOR vertex, Matrix modelViewProjx)
+{
+    asm __volatile__(
+        "lqc2		vf1, 0x00(%2)	\n"
+        "lqc2		vf2, 0x10(%2)	\n"
+        "lqc2		vf3, 0x20(%2)	\n"
+        "lqc2		vf4, 0x30(%2)	\n"
+        "1:					\n"
+        "lqc2		vf6, 0x00(%1)	\n"
+        "vmulaw		ACC, vf4, vf0	\n"
+        "vmaddax		ACC, vf1, vf6	\n"
+        "vmadday		ACC, vf2, vf6	\n"
+        "vmaddz		vf7, vf3, vf6	\n"
+        //"vclipw.xyz		vf7, vf7	\n" // FIXME: Clip detection is still kinda broken.
+        //"cfc2		$10, $18	\n"
+        //"beq			$10, $0, 3f	\n"
+        //"2:					\n"
+        //"sqc2		vi00, 0x00(%0)	\n"
+        //"j			4f		\n"
+        //"3:					\n"
+        "vdiv		Q, vf0w, vf7w	\n"
+        "vwaitq				\n"
+        "vmulq.xyz		vf7, vf7, Q	\n"
+        "sqc2		vf7, 0x00(%0)	\n"
+        :
+        : "r"(output), "r"(vertex), "r"(modelViewProjx.data)
+        : "memory");
+}
+
 /** Draw using PATH1 */
 void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_vertices, VECTOR *t_coordinates, prim_t *t_prim, texbuffer_t *textureBuffer)
 {
@@ -160,7 +209,7 @@ void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_ver
     u32 vif_added_bytes = 0;
     packet2_utils_vu_open_unpack(currPacket, 0, true);
     {
-        packet2_add_data(currPacket, modelViewProj.data, 4);
+        packet2_add_data(currPacket, gsModelViewProj.data, 4);
         packet2_add_s32(currPacket, 0); // not used for now
         packet2_add_s32(currPacket, vertCount);
         packet2_add_s32(currPacket, vertCount / 3);
@@ -176,6 +225,26 @@ void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_ver
         packet2_add_u32(currPacket, t_mesh.color.a);
     }
     vif_added_bytes += packet2_utils_vu_close_unpack(currPacket);
+
+    if (counter++ > 500)
+    {
+        counter = 0;
+        printf("GS Scale----------------\n");
+        for (size_t i = 0; i < vertCount; i++)
+        {
+            VECTOR output;
+            test(output, t_vertices[i], gsModelViewProj);
+            // printf("X:%f Y:%f Z:%f W:%f\n", t_vertices[i][0], t_vertices[i][1], t_vertices[i][2], t_vertices[i][3]);
+            Vector3 xd = Vector3(output[0], output[1], output[2]);
+            Vector3 gsOffsets = Vector3(Math::max(xClip, 1.0F), Math::max(yClip, 1.0F), depthClip * 1.003F);
+            gsOffsets.x += 2047.5F;
+            gsOffsets.y += 2047.5F;
+            gsOffsets.z = depthClipToGs;
+            (xd + gsOffsets).print(); // 1:1 with VU1
+        }
+        printf("----------------\n");
+    }
+
     packet2_utils_vu_add_unpack_data(currPacket, vif_added_bytes, t_vertices + t_start, vertCount, true);
     vif_added_bytes += vertCount;
     packet2_utils_vu_add_unpack_data(currPacket, vif_added_bytes, t_coordinates + t_start, vertCount, true);
@@ -208,7 +277,7 @@ void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_ver
 //         modelView = *t_renderData.worldView & modelView;
 
 //         // NEW multiply!
-//         Matrix projection = ident & frustum;
+//         Matrix projection = ident & *t_renderData.perspective;
 //         Matrix viewProj = projection & modelView;
 
 //         // NEW multiply!
@@ -271,7 +340,7 @@ void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_ver
 //         modelView = *t_renderData.worldView & modelView;
 
 //         // NEW multiply!
-//         Matrix projection = ident & frustum;
+//         Matrix projection = ident & *t_renderData.perspective;
 //         Matrix viewProj = projection & modelView;
 
 //         // NEW multiply!

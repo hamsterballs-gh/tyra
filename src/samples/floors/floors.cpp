@@ -41,7 +41,7 @@ void Floors::onInit()
     engine->renderer->setCameraDefinitions(&camera.worldView, &camera.unitCirclePosition, camera.planes);
     engine->audio.addSongListener(this);
     engine->audio.loadSong("sounds/mafikizolo-loot.wav");
-    engine->audio.playSong();
+    // engine->audio.playSong();
     engine->audio.setSongVolume(80);
     engine->renderer->disableVSync();
     texRepo = engine->renderer->getTextureRepository();
