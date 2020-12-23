@@ -42,9 +42,12 @@ void Test::onInit()
     triangle.position.y = 30.0F;
 
     waterFloors[0].loadObj("water/", "water", 10.0F, false);
-    waterFloors[0].position.set(0.0F, 10.0F, 0.0F);
+    waterFloors[0].position.set(0.0F, 10.0F, -10.0F);
     waterFloors[0].shouldBeBackfaceCulled = false;
     waterFloors[0].shouldBeFrustumCulled = false;
+    // waterFloors[0].position.x += 100.0F;
+    // waterFloors[0].position.y += 100.0F;
+    // waterFloors[0].position.z += 100.0F;
     texRepo->addByMesh("water/", waterFloors[0], BMP);
     for (u16 i = 0; i < WATER_TILES_COUNT; i++)
     {
@@ -58,7 +61,10 @@ void Test::onInit()
         waterFloors[i].loadFrom(waterFloors[0]);
         waterFloors[i].shouldBeBackfaceCulled = false;
         waterFloors[i].shouldBeFrustumCulled = false;
-        waterFloors[i].position.set(20.0F * spirals[i].x, 10.0F, 20.0F * spirals[i].y);
+        waterFloors[i].position.set(20.0F * spirals[i].x, 10.0F, (20.0F * spirals[i].y));
+        // waterFloors[i].position.x += 100.0F;
+        // waterFloors[i].position.y += 100.0F;
+        // waterFloors[i].position.z += 100.0F;
         texRepo->getByMesh(waterFloors[0].getId(), waterFloors[0].getMaterial(0).getId())
             ->addLink(waterFloors[i].getId(), waterFloors[i].getMaterial(0).getId());
     }
@@ -90,34 +96,35 @@ void Test::onUpdate()
 
     padStuff();
     camera.update(engine->pad, waterFloors[0]);
-    engine->renderer->draw(triangle);
+    // engine->renderer->draw(triangle);
     // for (size_t i = 0; i < WATER_TILES_COUNT; i++)
     //     engine->renderer->draw(waterFloors[i]);
+    // engine->renderer->draw(waterFloors[0]);
     engine->renderer->draw(waterFloors[13]);
 }
 
 void Test::padStuff()
 {
     if (engine->pad.lJoyV <= 100)
-        triangle.position.y += 0.3F;
+        waterFloors[13].position.y += 0.3F;
     else if (engine->pad.lJoyV >= 200)
-        triangle.position.y -= 0.3F;
+        waterFloors[13].position.y -= 0.3F;
     if (engine->pad.lJoyH <= 100)
-        triangle.position.x -= 0.3F;
+        waterFloors[13].position.x -= 0.3F;
     else if (engine->pad.lJoyH >= 200)
-        triangle.position.x += 0.3F;
+        waterFloors[13].position.x += 0.3F;
     if (engine->pad.isTriangleClicked)
-        triangle.position.z += .5F;
+        waterFloors[13].position.z += 1.0F;
     if (engine->pad.isSquareClicked)
-        triangle.position.z -= .5F;
+        waterFloors[13].position.z -= 1.0F;
 
     if (engine->pad.isCrossClicked)
     {
         printf("FPS:%f\n", engine->fps);
-        triangle.rotation.z += 0.1F;
+        waterFloors[13].rotation.z += 0.1F;
     }
     if (engine->pad.isCircleClicked)
-        triangle.rotation.z -= 0.1F;
+        waterFloors[13].rotation.z -= 0.1F;
 }
 
 void Test::calcSpiral(int X, int Y)

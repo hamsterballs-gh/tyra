@@ -31,6 +31,7 @@ Vector3::Vector3(const Vector3 &another)
     x = another.x;
     y = another.y;
     z = another.z;
+    // w = another.w;
 }
 
 void Vector3::setByLerp(const Vector3 &v1, const Vector3 &v2, const float &t_interp, const float &t_scale)
@@ -54,9 +55,10 @@ void Vector3::setByLerp(const Vector3 &v1, const Vector3 &v2, const float &t_int
 /** Create empty vector */
 Vector3::Vector3()
 {
-    x = 0;
-    y = 0;
-    z = 0;
+    x = 0.0F;
+    y = 0.0F;
+    z = 0.0F;
+    // w = 1.0F;
 }
 
 Vector3::~Vector3() {}
@@ -143,6 +145,17 @@ void Vector3::operator*=(const float &t)
         "sqc2       vf4, 0x0(%0)  \n\t"
         :
         : "r"(this->xyz), "f"(t));
+}
+
+void Vector3::operator+=(const Vector3 &t)
+{
+    asm volatile( // VU0 Macro program
+        "lqc2      vf4, 0x0(%1)  \n\t"
+        "lqc2      vf5, 0x0(%2)  \n\t"
+        "vadd.xyz  vf6, vf4, vf5 \n\t"
+        "sqc2      vf6, 0x0(%0)  \n\t"
+        :
+        : "r"(this->xyz), "r"(this->xyz), "r"(t.xyz));
 }
 
 Vector3 Vector3::operator/(float t)

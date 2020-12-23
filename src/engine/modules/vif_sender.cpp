@@ -45,10 +45,10 @@ VifSender::VifSender(Light *t_light)
 
     gsScale.identity();
     float width = 640.0F;
-    float height = 224.0F;
+    float height = 480.0F;
     s32 depthBits = 24; // or 28(fog) or 16
     int maxDepthValue = (1 << depthBits) - 1;
-    gsScale.setScale(Vector3(width / 2.0F, -1 * height / 2.0F, -1 * (float)maxDepthValue / 2.0F));
+    gsScale.setScale(Vector3(width / 2.0F, -1.0F * height / 2.0F, -1.0F * (float)maxDepthValue / 2.0F)); // Z nie ma żadnego wpływu
     ident.identity();
     xClip = (float)2048.0F / (width * .5F * 2.0F);
     yClip = (float)2048.0F / (height * .5F * 2.0F);
@@ -102,27 +102,91 @@ void VifSender::setDoubleBufferAndClip()
     packet2_free(settings);
 }
 
+float fixNear0(const float &t)
+{
+    float res = t;
+    if (t >= -0.99F && t <= -0.00F)
+        res -= 1.0F;
+    else if (t >= 0.00F && t <= 0.99F)
+        res += 1.0F;
+    return res;
+}
+
+const Vector3 *testxd;
+
 void VifSender::calcModelViewProjMatrix(const RenderData &t_renderData, const Vector3 &t_position, const Vector3 &t_rotation)
 {
-    modelViewProj.identity();
-
+    model.identity();
+    testxd = &t_position;
+    // Very important... this prevents values to be near 0.0F, without it we will have visual artifacts
+    // due to 0 division (infinite numbers)
+    // Vector3 fixpos = Vector3(t_position);
+    // fixpos.z = -fixpos.z;
+    // translate.translation(fixpos);
     translate.translation(t_position);
-    modelViewProj &= translate;
+    // translate.translation(Vector3(t_position.x + 0.1F, t_position.y + 0.1F, t_position.z + 0.1F));
+    // translate.translation(Vector3(t_position.x + 0.9F, t_position.y + 0.9F, t_position.z + 0.9F));
+    // translate.translation(Vector3(fixNear0(t_position.x), fixNear0(t_position.y), fixNear0(t_position.z)));
+    model &= translate;
 
-    rotate.rotationX(t_rotation.x);
-    modelViewProj &= rotate;
+    // rotate.rotationX(t_rotation.x);
+    // model &= rotate;
 
-    rotate.rotationY(t_rotation.y);
-    modelViewProj &= rotate;
+    // rotate.rotationY(t_rotation.y);
+    // model &= rotate;
 
-    rotate.rotationZ(t_rotation.z);
-    modelViewProj &= rotate;
+    // rotate.rotationZ(t_rotation.z);
+    // model &= rotate;
+    modelView = *t_renderData.worldView & model; // Bez kamery ten sam problem
 
-    viewProj = *t_renderData.worldView & modelViewProj; // Do sprawdzenia 1
+    // Matrix projection = Matrix(1.923234, 0.000000, 0.000000, 0.000000,
+    //                            0.000000, 2.747477, 0.000000, 0.000000,
+    //                            0.000000, 0.000000, -1.000500, -1.000000,
+    //                            0.000000, 0.000000, -2.000500, 0.000000);
 
     // NEW multiply!
-    Matrix projection = ident & *t_renderData.perspective;
-    modelViewProj = projection & viewProj; // Do sprawdzenia 3
+    // Matrix projection = ident; // Bez identa to samo
+    Matrix projection = Matrix(ident);
+    projection = *t_renderData.perspective; // Bez identa ato samo
+    // projection.data[0] = 2.0F;
+    // projection.data[5] = 2.0F;
+    // projection.data[10] = 0.499800F;
+    // projection.data[11] = -1.0F;
+    // projection.data[14] = -.200020F;
+    // if (counter > 200)
+    //     projection.print();
+
+    // projection.data[0] = 2.747478F;
+    // projection.data[5] = 2.747478F;
+    // projection.data[10] = -1.002002F;
+    // projection.data[11] = -1.0F;
+    // projection.data[14] = -2.002002F;
+    // projection.data[15] = 0.0F;
+
+    // model = Matrix(0.707107, -0.408248, 0.577350, 0.000000,
+    //                0.000000, 0.816497, 0.577350, 0.000000,
+    //                -0.707107, -0.408248, 0.577350, 0.000000,
+    //                0.000000, 0.000000, -86.602539, 1.000000);
+
+    // Matrix 1:1 z playlua
+    // Sprawdzić model jaki ma matrix
+    // Spróbować znaleźć model * matrix?
+
+    // modelViewProj = projection; // bedzie modelView
+    modelViewProj = projection & model; // bedzie modelView
+
+    // modelViewProj.print();
+    // for (;;)
+    // {
+    // }
+    // projection.print();
+    // model.print();
+    // (projection & model).print();
+    // (model * projection).print();
+    // for (;;)
+    // {
+    // }
+    //modelViewProj = projection * modelView; // bedzie modelView
 
     // if (counter > 500)
     // {
@@ -131,8 +195,84 @@ void VifSender::calcModelViewProjMatrix(const RenderData &t_renderData, const Ve
     //     printf("----------------\n");
     // }
 
+    // GS Scale----------------
+    // X:10.000000 Y:0.000000 Z:10.000000
+    // MODEL: Vector3(8.500004, 3.499997, 40.099998)
+    // PROJE: Vector3(-0.425205, -0.233445, 1.523993)
+    // GS   : Vector3(1914.634399, 2107.793457, -4395570.500000)
+
+    // X:-10.000000 Y:0.000000 Z:-10.000000
+    // MODEL: Vector3(-11.499995, 3.499997, 20.099998)
+    // PROJE: Vector3(1.147691, -0.465730, 2.025277)
+    // GS   : Vector3(2417.961182, 2163.541504, -8600650.000000)
+
+    // X:-10.000000 Y:0.000000 Z:10.000000
+    // MODEL: Vector3(-11.499995, 3.499997, 40.099998)
+    // PROJE: Vector3(0.575277, -0.233445, 1.523993)
+    // GS   : Vector3(2234.788330, 2107.793457, -4395570.500000)
+
+    // X:10.000000 Y:0.000000 Z:10.000000
+    // MODEL: Vector3(8.500004, 3.499997, 40.099998)
+    // PROJE: Vector3(-0.425205, -0.233445, 1.523993)
+    // GS   : Vector3(1914.634399, 2107.793457, -4395570.500000)
+
+    // X:10.000000 Y:0.000000 Z:-10.000000
+    // MODEL: Vector3(8.500004, 3.499997, 20.099998)
+    // PROJE: Vector3(-0.848294, -0.465730, 2.025277)
+    // GS   : Vector3(1779.245728, 2163.541504, -8600650.000000)
+
+    // X:-10.000000 Y:0.000000 Z:-10.000000
+    // MODEL: Vector3(-11.499995, 3.499997, 20.099998)
+    // PROJE: Vector3(1.147691, -0.465730, 2.025277)
+    // GS   : Vector3(2417.961182, 2163.541504, -8600650.000000)
+
+    // ----------------
+    // projection.print(); // TODO 1
+    // printf("---\n");
+    // modelViewProj = Matrix(1.923228, 0.000000, 0.002619, 0.002618,
+    //                        0.000000, 2.747477, 0.000000, 0.000000,
+    //                        0.005035, 0.000000, -1.000497, -0.999997,
+    //                        0.000000, 0.000000, 3.002001, 5.000000);
+    // modelViewProj.print();
     // NEW multiply!
+    // modelViewProj.print();
     gsModelViewProj = gsScale & modelViewProj; // Do sprawdzenia 4
+    // Vector3 test = Vector3(t_position.x, t_position.y, t_position.z);
+    // test.print();
+    // modelViewProj.print(); // TODO 1
+    // printf("---\n");
+    // gsModelViewProj.print(); // TODO 2
+    // for (;;)
+    // {
+    // }
+
+    //    -----
+    // Projection:
+    // (1.923234 0.000000 0.000000 0.000000)
+    // (0.000000 2.747478 0.000000 0.000000)
+    // (0.000000 0.000000 -1.000500 -1.000000)
+    // (0.000000 0.000000 -2.000500 0.000000)
+    // ModelView:
+    // (1.000000 0.000000 0.000000 0.000000)
+    // (0.000000 1.000000 0.000000 0.000000)
+    // (0.000000 0.000000 1.000000 0.000000)
+    // (20.000000 10.000000 40.000000 1.000000)
+    // Scale:
+    // (320.000000 0.000000 0.000000 0.000000)
+    // (0.000000 -112.000000 0.000000 0.000000)
+    // (0.000000 0.000000 -8388607.500000 0.000000)
+    // (0.000000 0.000000 0.000000 1.000000)
+    // XFORM:
+    // (1.923234 0.000000 0.000000 0.000000)
+    // (0.000000 2.747478 0.000000 0.000000)
+    // (0.000000 0.000000 -1.000500 -1.000000)
+    // (38.464684 27.474775 -42.020500 -40.000000)
+    // Result:
+    // (615.434937 0.000000 0.000000 0.000000)
+    // (0.000000 -307.717468 0.000000 0.000000)
+    // (0.000000 0.000000 8392802.000000 -1.000000)
+    // (12308.698242 -3077.174805 352493472.000000 -40.000000)
+    // -----
 
     // if (counter > 500)
     // {
@@ -154,7 +294,6 @@ void VifSender::drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 ver
         {
             if (i != 0) // we have to go back to avoid the visual artifacts
                 i -= 3;
-
             const u32 endI = i + (VU1_PACKAGE_VERTS_PER_BUFF - 1) > vertCount2 ? vertCount2 : i + (VU1_PACKAGE_VERTS_PER_BUFF - 1);
             drawVertices(t_mesh, i, endI, vertices, coordinates, t_renderData->prim, textureBuffer);
             if (endI == vertCount2) // if there are no more vertices to draw, break
@@ -173,6 +312,28 @@ void VifSender::drawMesh(RenderData *t_renderData, Matrix t_perspective, u32 ver
 }
 
 // Xform + perspective divide from VU1
+void testmul(VECTOR output, VECTOR vertex, Matrix modelViewProjx)
+{
+    asm __volatile__(
+        "lqc2		vf1, 0x00(%2)	\n"
+        "lqc2		vf2, 0x10(%2)	\n"
+        "lqc2		vf3, 0x20(%2)	\n"
+        "lqc2		vf4, 0x30(%2)	\n"
+        "1:					\n"
+        "lqc2		vf9, 0x00(%1)	\n"
+        "vmulax		ACC,  vf1, vf9x	\n"
+        "vmadday	ACC,  vf2, vf9y	\n"
+        "vmaddaz	ACC,  vf3, vf9z	\n"
+        "vmaddw		vf12, vf4, vf9w	\n"
+        //"vclipw.xyz		vf12,vf12	\n"
+
+        "sqc2		vf12, 0x00(%0)	\n"
+        :
+        : "r"(output), "r"(vertex), "r"(modelViewProjx.data)
+        : "memory");
+}
+
+// Xform + perspective divide from VU1
 void test(VECTOR output, VECTOR vertex, Matrix modelViewProjx)
 {
     asm __volatile__(
@@ -181,25 +342,42 @@ void test(VECTOR output, VECTOR vertex, Matrix modelViewProjx)
         "lqc2		vf3, 0x20(%2)	\n"
         "lqc2		vf4, 0x30(%2)	\n"
         "1:					\n"
-        "lqc2		vf6, 0x00(%1)	\n"
-        "vmulaw		ACC, vf4, vf0	\n"
-        "vmaddax		ACC, vf1, vf6	\n"
-        "vmadday		ACC, vf2, vf6	\n"
-        "vmaddz		vf7, vf3, vf6	\n"
-        //"vclipw.xyz		vf7, vf7	\n" // FIXME: Clip detection is still kinda broken.
-        //"cfc2		$10, $18	\n"
-        //"beq			$10, $0, 3f	\n"
-        //"2:					\n"
-        //"sqc2		vi00, 0x00(%0)	\n"
-        //"j			4f		\n"
-        //"3:					\n"
-        "vdiv		Q, vf0w, vf7w	\n"
+        "lqc2		vf9, 0x00(%1)	\n"
+        "vmulax		ACC,  vf1, vf9x	\n"
+        "vmadday	ACC,  vf2, vf9y	\n"
+        "vmaddaz	ACC,  vf3, vf9z	\n"
+        "vmaddw		vf12, vf4, vf9w	\n"
+        //"vclipw.xyz		vf12,vf12	\n"
+
+        "vdiv		Q,   vf0w, vf12w	\n"
         "vwaitq				\n"
-        "vmulq.xyz		vf7, vf7, Q	\n"
-        "sqc2		vf7, 0x00(%0)	\n"
+        "vmulq.xyz		vf8, vf12, Q	\n"
+
+        "sqc2		vf8, 0x00(%0)	\n"
         :
         : "r"(output), "r"(vertex), "r"(modelViewProjx.data)
         : "memory");
+
+    // asm __volatile__(
+    //     "lqc2		vf1, 0x00(%2)	\n"
+    //     "lqc2		vf2, 0x10(%2)	\n"
+    //     "lqc2		vf3, 0x20(%2)	\n"
+    //     "lqc2		vf4, 0x30(%2)	\n"
+    //     "1:					\n"
+    //     "lqc2		vf6, 0x00(%1)	\n"
+    //     "vmulaw		ACC, vf4, vf0	\n"
+    //     "vmaddax		ACC, vf1, vf6	\n"
+    //     "vmadday		ACC, vf2, vf6	\n"
+    //     "vmaddz		vf7, vf3, vf6	\n"
+
+    //     "vdiv		Q, vf0w, vf7w	\n"
+    //     "vwaitq				\n"
+    //     "vmulq.xyz		vf7, vf7, Q	\n"
+
+    //     "sqc2		vf7, 0x00(%0)	\n"
+    //     :
+    //     : "r"(output), "r"(vertex), "r"(modelViewProjx.data)
+    //     : "memory");
 }
 
 /** Draw using PATH1 */
@@ -226,21 +404,42 @@ void VifSender::drawVertices(Mesh &t_mesh, u32 t_start, u32 t_end, VECTOR *t_ver
     }
     vif_added_bytes += packet2_utils_vu_close_unpack(currPacket);
 
-    if (counter++ > 500)
+    // 1. Sprawdzić czy minus też jest na matrycach w OpenGL
+    // 2. Sprawdzić różnicę między mnożeniami
+
+    if (counter++ > 200)
     {
         counter = 0;
-        printf("GS Scale----------------\n");
+        printf("\n\n6 VERTS (2 TRIS)----------------\n");
+        // translate.print();
+        // printf("---\n");6
         for (size_t i = 0; i < vertCount; i++)
         {
             VECTOR output;
+
+            // 1 - Vec*Model
+            // 2 - Vec*(Proj*Model)
+
+            // printf("X:%f Y:%f Z:%f\n", t_vertices[i][0], t_vertices[i][1], t_vertices[i][2]);
+            test(output, t_vertices[i], model);
+            printf("1(X:%f Y:%f, Z:%f)\n", output[0], output[1], output[2]);
+            test(output, t_vertices[i], modelViewProj);
+            printf("2(X:%f Y:%f)\n", output[0], output[1]);
             test(output, t_vertices[i], gsModelViewProj);
-            // printf("X:%f Y:%f Z:%f W:%f\n", t_vertices[i][0], t_vertices[i][1], t_vertices[i][2], t_vertices[i][3]);
-            Vector3 xd = Vector3(output[0], output[1], output[2]);
+            Vector3 xd3 = Vector3(output[0], output[1], output[2]);
+            // testmul(output, t_vertices[i], gsModelViewProj);
+            // printf("MUL(X:%f Y:%f Z:%f W:%f)\n", output[0], output[1], output[2], output[3]);
+
             Vector3 gsOffsets = Vector3(Math::max(xClip, 1.0F), Math::max(yClip, 1.0F), depthClip * 1.003F);
             gsOffsets.x += 2047.5F;
             gsOffsets.y += 2047.5F;
             gsOffsets.z = depthClipToGs;
-            (xd + gsOffsets).print(); // 1:1 with VU1
+
+            // printf("GSMVP: ");
+            Vector3 beb = xd3 + gsOffsets;
+            printf("3(X:%f Y:%f)\n", beb.x, beb.y);
+            // (xd3 + gsOffsets).print(); // 1:1 with VU1
+            printf("\n");
         }
         printf("----------------\n");
     }

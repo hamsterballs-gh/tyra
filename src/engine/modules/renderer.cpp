@@ -227,7 +227,7 @@ void Renderer::allocateBuffers()
     zBuffer.address = graph_vram_allocate(frameBuffers[0].width, frameBuffers[0].height, zBuffer.zsm, GRAPH_ALIGN_PAGE);
     PRINT_LOG("Framebuffers, zBuffer set and allocated!");
 
-    graph_set_mode(GRAPH_MODE_NONINTERLACED, graph_get_region(), GRAPH_MODE_FIELD, GRAPH_ENABLE);
+    graph_set_mode(GRAPH_MODE_INTERLACED, graph_get_region(), GRAPH_MODE_FIELD, GRAPH_ENABLE);
     graph_set_screen(0, 0, (s32)screen->width, (s32)screen->height); // manual interlacing
     graph_set_bgcolor(0, 0, 0);
     graph_set_framebuffer_filtered(frameBuffers[0].address, (s32)screen->width, frameBuffers[0].psm, 0, 0);

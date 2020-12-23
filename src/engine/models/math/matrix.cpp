@@ -23,25 +23,25 @@ Matrix::Matrix(float m11, float m12, float m13, float m14,
                float m31, float m32, float m33, float m34,
                float m41, float m42, float m43, float m44)
 {
-    // data[0] = m11;
-    // data[1] = m12;
-    // data[2] = m13;
-    // data[3] = m14;
+    data[0] = m11;
+    data[1] = m12;
+    data[2] = m13;
+    data[3] = m14;
 
-    // data[4] = m21;
-    // data[5] = m22;
-    // data[6] = m23;
-    // data[7] = m24;
+    data[4] = m21;
+    data[5] = m22;
+    data[6] = m23;
+    data[7] = m24;
 
-    // data[8] = m31;
-    // data[9] = m32;
-    // data[10] = m33;
-    // data[11] = m34;
+    data[8] = m31;
+    data[9] = m32;
+    data[10] = m33;
+    data[11] = m34;
 
-    // data[12] = m41;
-    // data[13] = m42;
-    // data[14] = m43;
-    // data[15] = m44;
+    data[12] = m41;
+    data[13] = m42;
+    data[14] = m43;
+    data[15] = m44;
 }
 
 /** Create with another matrix values */
@@ -161,7 +161,7 @@ Matrix Matrix::operator*(const Matrix &t)
         "sqc2         vf3, 0x20(%0) \n\t"
         "sqc2         vf4, 0x30(%0) \n\t"
         :
-        : "r"(result.data), "r"(this->data), "r"(t.data)
+        : "r"(result.data), "r"(t.data), "r"(this->data)
         : "memory");
     return result;
 }
@@ -214,38 +214,45 @@ void Matrix::operator*=(const Matrix &t)
         "lqc2         vf2, 0x10(%1) \n\t"
         "lqc2         vf3, 0x20(%1) \n\t"
         "lqc2         vf4, 0x30(%1) \n\t"
+
         "lqc2         vf5, 0x00(%2) \n\t"
         "lqc2         vf6, 0x10(%2) \n\t"
         "lqc2         vf7, 0x20(%2) \n\t"
         "lqc2         vf8, 0x30(%2) \n\t"
+
         "vmulax.xyzw  ACC, vf5, vf1 \n\t"
         "vmadday.xyzw ACC, vf6, vf1 \n\t"
         "vmaddaz.xyzw ACC, vf7, vf1 \n\t"
         "vmaddw.xyzw  vf1, vf8, vf1 \n\t"
+
         "vmulax.xyzw  ACC, vf5, vf2 \n\t"
         "vmadday.xyzw ACC, vf6, vf2 \n\t"
         "vmaddaz.xyzw ACC, vf7, vf2 \n\t"
         "vmaddw.xyzw  vf2, vf8, vf2 \n\t"
+
         "vmulax.xyzw  ACC, vf5, vf3 \n\t"
         "vmadday.xyzw ACC, vf6, vf3 \n\t"
         "vmaddaz.xyzw ACC, vf7, vf3 \n\t"
         "vmaddw.xyzw  vf3, vf8, vf3 \n\t"
+
         "vmulax.xyzw  ACC, vf5, vf4 \n\t"
         "vmadday.xyzw ACC, vf6, vf4 \n\t"
         "vmaddaz.xyzw ACC, vf7, vf4 \n\t"
         "vmaddw.xyzw  vf4, vf8, vf4 \n\t"
+
         "sqc2         vf1, 0x00(%0) \n\t"
         "sqc2         vf2, 0x10(%0) \n\t"
         "sqc2         vf3, 0x20(%0) \n\t"
         "sqc2         vf4, 0x30(%0) \n\t"
         :
-        : "r"(this->data), "r"(this->data), "r"(t.data)
+        : "r"(this->data), "r"(t.data), "r"(this->data)
         : "memory");
 }
 
 Matrix Matrix::operator&(const Matrix &t)
 {
     Matrix result;
+    result.identity();
     asm __volatile__(
         "lqc2			vf4, 0x00(%1) \n\t"
         "lqc2			vf5, 0x10(%1) \n\t"
@@ -258,20 +265,23 @@ Matrix Matrix::operator&(const Matrix &t)
         "lqc2			vf11, 0x30(%2) \n\t"
 
         "vmulax.xyzw		ACC, vf4, vf8 \n\t"
-        "vmadday.xyzw	ACC, vf5, vf8 \n\t"
-        "vmaddaz.xyzw	ACC, vf6, vf8 \n\t"
+        "vmadday.xyzw	    ACC, vf5, vf8 \n\t"
+        "vmaddaz.xyzw	    ACC, vf6, vf8 \n\t"
         "vmaddw.xyzw		vf12, vf7, vf8 \n\t"
+
         "vmulax.xyzw		ACC, vf4, vf9 \n\t"
-        "vmadday.xyzw	ACC, vf5, vf9 \n\t"
-        "vmaddaz.xyzw	ACC, vf6, vf9 \n\t"
+        "vmadday.xyzw	    ACC, vf5, vf9 \n\t"
+        "vmaddaz.xyzw	    ACC, vf6, vf9 \n\t"
         "vmaddw.xyzw		vf13, vf7, vf9 \n\t"
+
         "vmulax.xyzw		ACC, vf4, vf10 \n\t"
-        "vmadday.xyzw	ACC, vf5, vf10 \n\t"
-        "vmaddaz.xyzw	ACC, vf6, vf10 \n\t"
+        "vmadday.xyzw	    ACC, vf5, vf10 \n\t"
+        "vmaddaz.xyzw	    ACC, vf6, vf10 \n\t"
         "vmaddw.xyzw		vf14, vf7, vf10 \n\t"
+
         "vmulax.xyzw		ACC, vf4, vf11 \n\t"
-        "vmadday.xyzw	ACC, vf5, vf11 \n\t"
-        "vmaddaz.xyzw	ACC, vf6, vf11 \n\t"
+        "vmadday.xyzw	    ACC, vf5, vf11 \n\t"
+        "vmaddaz.xyzw	    ACC, vf6, vf11 \n\t"
         "vmaddw.xyzw		vf15, vf7, vf11 \n\t"
 
         "sqc2			vf12, 0x00(%0) \n\t"
@@ -365,50 +375,127 @@ Matrix::~Matrix() {}
  */
 void Matrix::setPerspective(ScreenSettings &t_screen)
 {
-    // float fovYdiv2 = Math::HALF_ANG2RAD * t_screen.fov;
-    // float cotFOV = 1.0F / (Math::sin(fovYdiv2) / Math::cos(fovYdiv2));
-    // float w = cotFOV * (t_screen.width / t_screen.projectionScale) / t_screen.aspectRatio;
-    // float h = cotFOV * (t_screen.height / t_screen.projectionScale);
+    float fovYdiv2 = Math::HALF_ANG2RAD * t_screen.fov;
+    float cotFOV = 1.0F / (Math::sin(fovYdiv2) / Math::cos(fovYdiv2));
+    float w = cotFOV * (t_screen.width / 4096.0F) / t_screen.aspectRatio;
+    float h = cotFOV * (t_screen.height / 4096.0F);
 
-    // this->data[0] = w;
-    // this->data[1] = 0.0F;
-    // this->data[2] = 0.0F;
-    // this->data[3] = 0.0F;
+    this->data[0] = w;
+    this->data[1] = 0.0F;
+    this->data[2] = 0.0F;
+    this->data[3] = 0.0F;
 
-    // this->data[4] = 0.0F;
-    // this->data[5] = -h;
-    // this->data[6] = 0.0F;
-    // this->data[7] = 0.0F;
+    this->data[4] = 0.0F;
+    this->data[5] = -h;
+    this->data[6] = 0.0F;
+    this->data[7] = 0.0F;
 
-    // this->data[8] = 0.0F;
-    // this->data[9] = 0.0F;
-    // this->data[10] =
-    //     (t_screen.farPlaneDist + t_screen.nearPlaneDist) /
-    //     (t_screen.farPlaneDist - t_screen.nearPlaneDist);
-    // this->data[11] = -1.0F;
+    this->data[8] = 0.0F;
+    this->data[9] = 0.0F;
+    this->data[10] =
+        (t_screen.farPlaneDist + t_screen.nearPlaneDist) /
+        (t_screen.farPlaneDist - t_screen.nearPlaneDist);
+    this->data[11] = -1.0F;
 
-    // this->data[12] = 0.0F;
-    // this->data[13] = 0.0F;
-    // this->data[14] =
-    //     (2.0F * t_screen.farPlaneDist * t_screen.nearPlaneDist) /
-    //     (t_screen.farPlaneDist - t_screen.nearPlaneDist);
-    // this->data[15] = 0.0F;
+    this->data[12] = 0.0F;
+    this->data[13] = 0.0F;
+    this->data[14] =
+        (2.0F * t_screen.farPlaneDist * t_screen.nearPlaneDist) /
+        (t_screen.farPlaneDist - t_screen.nearPlaneDist);
+    this->data[15] = 0.0F;
 }
 
+#define PIX_XpY (0.7446f)        //１画素の縦横比
+#define PIX_YpX (1.0F / PIX_XpY) //１画素の縦横比
 void Matrix::setFrustum(ScreenSettings &t_screen)
 {
     // frustum & perspective both produce perspective projection
+
+    // Matrix m;
+    // float scrz, asp_y;
+
+    // // float fov = t_screen.fov * Math::ANG2RAD;
+    // // float fovy = fov / 2.0F;
+
+    // scrz = (t_screen.height / 2) / (Math::tan(t_screen.fov * (Math::PI / 65536.F))); //scrz= (N_HEIGHT/2) /(tanf( (fovy/2) * (2.0f * PI /65536.f )));
+    // asp_y = PIX_YpX / t_screen.aspectRatio;
+
+    // //	|  1  0	 0	0 |
+    // //	|  0 ay	 0	0 |
+    // //	|  0  0	 1	0 |
+    // //	| cx cy	 0	1 |
+    // m.identity();
+    // this->identity();
+
+    // m.data[5] = asp_y;
+    // m.data[12] = t_screen.width;
+    // m.data[13] = t_screen.height;
+    // operator*=(m);
+
+    // //	| scrz	  0	 0 0 |
+    // //	|	 0 scrz	 0 0 |
+    // //	|	 0	  0	 1 0 |
+    // //	|	 0	  0	 0 1 |
+    // m.identity();
+    // m.data[0] = m.data[5] = scrz;
+    // operator*=(m);
+
+    // //ＰＳ２用
+    // View_work.screen_dist = SCREEN_HEIGHT / (tanf(fovy * (PI / 65536.f)));
+
+    // ---
+
+    // float left = -0.05F;
+    // float right = 0.05F;
+    // float bottom = -0.05F;
+    // float top = 0.05F;
+    // float znear = t_screen.nearPlaneDist; // bez wpływu // t_screen.nearPlaneDist
+    // float zfar = t_screen.farPlaneDist;   // bez wpływu // t_screen.farPlaneDist
+    //                                       // frustum & perspective both produce perspective projection
+
+    // float ymax, xmax;
+    // ymax = znear * Math::tan(t_screen.fov * Math::PI / 360.0);
+    // // ymin = -ymax;
+    // // xmin = -ymax * aspectRatio;
+    // xmax = ymax * t_screen.aspectRatio;
+    // float temp, temp2, temp3, temp4;
+    // temp = 2.0 * znear;
+    // temp2 = right - left;
+    // temp3 = top - bottom;
+    // temp4 = zfar - znear;
+    // this->data[0] = temp / temp2;
+    // this->data[1] = 0.0;
+    // this->data[2] = 0.0;
+    // this->data[3] = 0.0;
+    // this->data[4] = 0.0;
+    // this->data[5] = temp / temp3;
+    // this->data[6] = 0.0;
+    // this->data[7] = 0.0;
+    // this->data[8] = (right + left) / temp2;
+    // this->data[9] = (top + bottom) / temp3;
+    // this->data[10] = (-zfar - znear) / temp4;
+    // this->data[11] = -1.0;
+    // this->data[12] = 0.0;
+    // this->data[13] = 0.0;
+    // this->data[14] = (-temp * zfar) / temp4;
+    // this->data[15] = 0.0;
+
+    // ---
 
     float fov = t_screen.fov * Math::ANG2RAD;
     float h = 2.0F * t_screen.nearPlaneDist * Math::tan(fov / 2.0F);
     float w = h * t_screen.aspectRatio;
 
+    // float left = -.5F;
+    // float right = 0.5F;
+    // float bottom = -0.5F;
+    // float top = .5F;
     float left = -w / 2.0F;
     float right = w / 2.0F;
     float bottom = -h / 2.0F;
     float top = h / 2.0F;
-    float zNear = t_screen.nearPlaneDist;
-    float zFar = t_screen.farPlaneDist;
+    float zNear = t_screen.nearPlaneDist; // bez wpływu // t_screen.nearPlaneDist
+    float zFar = t_screen.farPlaneDist;   // bez wpływu // t_screen.farPlaneDist
 
     this->data[0] = (2.0f * zNear) / (right - left);
     this->data[1] = 0.0F;
@@ -528,7 +615,7 @@ void Matrix::lookAt(Vector3 &t_position, Vector3 &t_target)
     // printf("X:%f Y:%f Z:%f W:%f\n", up_vec[0], up_vec[1], up_vec[2], up_vec[3]);
     temp.camera(eye, view_vec, up_vec);
     unit();
-    operator&=(temp);
+    operator*=(temp);
 }
 
 const void Matrix::print() const

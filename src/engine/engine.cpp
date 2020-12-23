@@ -41,12 +41,12 @@ Engine::~Engine() {}
 
 void Engine::setDefaultScreen()
 {
-    screen.nearPlaneDist = 1.0F;
+    screen.nearPlaneDist = 0.01F;
     screen.farPlaneDist = 4000.0F;
-    screen.fov = 40.0F;
-    screen.aspectRatio = 640.0F / 448.0F;
+    screen.fov = 41.0F;
     screen.width = 640.0F;
-    screen.height = 224.0F;
+    screen.height = 480.0F;
+    screen.aspectRatio = screen.width / screen.height;
 }
 
 void Engine::init(Game *t_game, u32 t_gifPacketSize)
